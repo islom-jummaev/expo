@@ -8,6 +8,7 @@ Package-specific changes not released in any SDK will be added here just before 
 ### 📚 3rd party library updates
 
 - Removed `react-native-appearance` that is deprecated since SDK 43. Migrate to [`Appearance` API](https://reactnative.dev/docs/appearance). ([#16436](https://github.com/expo/expo/pull/16436) by [@kudo](https://github.com/kudo))
+- Updated `@react-native-community/netinfo` from `7.1.3` to `8.2.0`. ([#16883](https://github.com/expo/expo/pull/16883) by [@bycedric](https://github.com/bycedric))
 
 ### 🛠 Breaking changes
 
