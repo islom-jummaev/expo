@@ -212,9 +212,9 @@ export class ExpoGoManifestHandlerMiddleware extends ManifestMiddleware<ExpoGoMa
 
 /**
  * 1. No EAS project ID in config, then use anonymous scope key
- * 1. When offline or not logged in
+ * 2. When offline or not logged in
  *   a. If code signing not accepted by client (only legacy manifest signing is supported), then use anonymous scope key
- *   b. If code singing accepted by client and no development code signing certificate is cached, then use anonymous scope key
+ *   b. If code signing accepted by client and no development code signing certificate is cached, then use anonymous scope key
  */
 async function shouldUseAnonymousManifestAsync(
   easProjectId: string | undefined | null,

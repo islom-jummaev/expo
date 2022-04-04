@@ -78,7 +78,7 @@ export const expoStart: Command = async (argv) => {
 
     --dev-client                           Experimental: Starts the bundler for use with the expo-development-client
     --force-manifest-type <manifest-type>  Override auto detection of manifest type
-    --private-key-path <path>              Path to private key for code signing. Default: same directory as certificate in expo-updates configuration in app.json.
+    --private-key-path <path>              Path to private key for code signing. Default: "private-key.pem" in the same directory as the certificate specified by the expo-updates configuration in app.json.
     -h, --help                             output usage information
 `,
       0

@@ -23,7 +23,15 @@ import { createTemporaryProjectFile } from '../start/project/dotExpo';
 export type CodeSigningInfo = {
   privateKey: string;
   certificateForPrivateKey: string;
-  certificateChainForResponse: string[]; // empty means no need to serve the certificate chain in the multipart response
+  /**
+   * Chain of certificates to serve in the manifest multipart body "certificate_chain" part.
+   * The leaf certificate must be the 0th element of the array, followed by any intermediate certificates
+   * necessary to evaluate the chain of trust ending in the implicitly trusted root certificate embedded in
+   * the client.
+   *
+   * An empty array indicates that there is no need to serve the certificate chain in the multipart response.
+   */
+  certificateChainForResponse: string[];
 };
 
 type StoredDevelopmentExpoRootCodeSigningInfo = {
@@ -115,13 +123,13 @@ async function getExpoRootDevelopmentCodeSigningInfoAsync(
     return null;
   }
 
-  // 1. If online, ensure logged in, generate PK, CSR, fetch and cache cert chain for projectId
+  // 1. If online, ensure logged in, generate key pair and CSR, fetch and cache certificate chain for projectId
   //    (overwriting existing dev cert in case projectId changed or it has expired)
   if (!APISettings.isOffline) {
     return await fetchAndCacheNewDevelopmentCodeSigningInfoAsync(projectRoot, easProjectId);
   }
 
-  // 2. check for cached cert/pk matching projectId and scopeKey of project, if found and valid return PK and cert chain including expo-go cert
+  // 2. check for cached cert/private key matching projectId and scopeKey of project, if found and valid return private key and cert chain including expo-go cert
   const developmentCodeSigningInfoFromFile = await DevelopmentCodeSigningInfoFile.readAsync(
     projectRoot
   );
@@ -139,7 +147,7 @@ async function getExpoRootDevelopmentCodeSigningInfoAsync(
 }
 
 /**
- * Get the certificiate configured for expo-updates for this project.
+ * Get the certificate configured for expo-updates for this project.
  */
 async function getProjectCodeSigningCertificateAsync(
   exp: ExpoConfig,
@@ -159,14 +167,14 @@ async function getProjectCodeSigningCertificateAsync(
   const codeSigningMetadata = exp.updates?.codeSigningMetadata;
   if (!codeSigningMetadata) {
     throw new Error(
-      'Must specify codeSigningMetadata under the "updates" field of your app config file to use EAS code signing'
+      'Must specify "codeSigningMetadata" under the "updates" field of your app config file to use EAS code signing'
     );
   }
 
   const { alg, keyid } = codeSigningMetadata;
   if (!alg || !keyid) {
     throw new Error(
-      'Must specify keyid and alg in the codeSigningMetadata field under the "updates" field of your app config file to use EAS code signing'
+      'Must specify "keyid" and "alg" in the "codeSigningMetadata" field under the "updates" field of your app config file to use EAS code signing'
     );
   }
 
@@ -268,7 +276,7 @@ async function fetchAndCacheNewDevelopmentCodeSigningInfoAsync(
   const keyPairPEM = convertKeyPairToPEM(keyPair);
   const csr = generateCSR(keyPair, `Development Certificate for ${easProjectId}`);
   const csrPEM = convertCSRToCSRPEM(csr);
-  const [developmentCertificate, expoGoIntermeidateCertificate] = await Promise.all([
+  const [developmentSigningCertificate, expoGoIntermediateCertificate] = await Promise.all([
     getProjectDevelopmentCertificateAsync(easProjectId, csrPEM),
     getExpoGoIntermediateCertificateAsync(easProjectId),
   ]);
@@ -276,12 +284,12 @@ async function fetchAndCacheNewDevelopmentCodeSigningInfoAsync(
   await DevelopmentCodeSigningInfoFile.setAsync(projectRoot, {
     easProjectId,
     privateKey: keyPairPEM.privateKeyPEM,
-    certificateChain: [developmentCertificate, expoGoIntermeidateCertificate],
+    certificateChain: [developmentSigningCertificate, expoGoIntermediateCertificate],
   });
 
   return {
-    certificateChainForResponse: [developmentCertificate, expoGoIntermeidateCertificate],
-    certificateForPrivateKey: developmentCertificate,
+    certificateChainForResponse: [developmentSigningCertificate, expoGoIntermediateCertificate],
+    certificateForPrivateKey: developmentSigningCertificate,
     privateKey: keyPairPEM.privateKeyPEM,
   };
 }

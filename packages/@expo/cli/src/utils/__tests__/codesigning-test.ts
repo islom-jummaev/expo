@@ -261,7 +261,7 @@ describe(getCodeSigningInfoAsync, () => {
           undefined
         )
       ).rejects.toThrowError(
-        'Must specify codeSigningMetadata under the "updates" field of your app config file to use EAS code signing'
+        'Must specify "codeSigningMetadata" under the "updates" field of your app config file to use EAS code signing'
       );
     });
 
