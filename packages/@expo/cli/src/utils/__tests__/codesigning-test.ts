@@ -158,18 +158,18 @@ beforeEach(() => {
 
 describe(getCodeSigningInfoAsync, () => {
   it('returns null when no expo-expect-signature header is requested', async () => {
-    await expect(getCodeSigningInfoAsync('', {} as any, null, null)).resolves.toBeNull();
+    await expect(getCodeSigningInfoAsync({} as any, null, null)).resolves.toBeNull();
   });
 
   it('throws when expo-expect-signature header has invalid format', async () => {
-    await expect(getCodeSigningInfoAsync('', {} as any, 'hello', null)).rejects.toThrowError(
+    await expect(getCodeSigningInfoAsync({} as any, 'hello', null)).rejects.toThrowError(
       'keyid not present in expo-expect-signature header'
     );
-    await expect(getCodeSigningInfoAsync('', {} as any, 'keyid=1', null)).rejects.toThrowError(
+    await expect(getCodeSigningInfoAsync({} as any, 'keyid=1', null)).rejects.toThrowError(
       'Invalid value for keyid in expo-expect-signature header: 1'
     );
     await expect(
-      getCodeSigningInfoAsync('', {} as any, 'keyid="hello", alg=1', null)
+      getCodeSigningInfoAsync({} as any, 'keyid="hello", alg=1', null)
     ).rejects.toThrowError('Invalid value for alg in expo-expect-signature header');
   });
 
@@ -181,7 +181,6 @@ describe(getCodeSigningInfoAsync, () => {
 
       it('normal case gets a development certificate', async () => {
         const result = await getCodeSigningInfoAsync(
-          '/',
           { extra: { eas: { projectId: 'testprojectid' } } } as any,
           'keyid="expo-root", alg="rsa-v1_5-sha256"',
           undefined
@@ -191,7 +190,6 @@ describe(getCodeSigningInfoAsync, () => {
 
       it('requires easProjectId to be configured', async () => {
         const result = await getCodeSigningInfoAsync(
-          '/',
           { extra: { eas: {} } } as any,
           'keyid="expo-root", alg="rsa-v1_5-sha256"',
           undefined
@@ -201,14 +199,12 @@ describe(getCodeSigningInfoAsync, () => {
 
       it('falls back to cached when offline', async () => {
         const result = await getCodeSigningInfoAsync(
-          '/',
           { extra: { eas: { projectId: 'testprojectid' } } } as any,
           'keyid="expo-root", alg="rsa-v1_5-sha256"',
           undefined
         );
         APISettings.isOffline = true;
         const result2 = await getCodeSigningInfoAsync(
-          '/',
           { extra: { eas: { projectId: 'testprojectid' } } } as any,
           'keyid="expo-root", alg="rsa-v1_5-sha256"',
           undefined
@@ -222,7 +218,7 @@ describe(getCodeSigningInfoAsync, () => {
   describe('expo-go keyid requested', () => {
     it('throws', async () => {
       await expect(
-        getCodeSigningInfoAsync('', {} as any, 'keyid="expo-go"', null)
+        getCodeSigningInfoAsync({} as any, 'keyid="expo-go"', null)
       ).rejects.toThrowError(
         'Invalid certificate requested: cannot sign with embedded keyid=expo-go key'
       );
@@ -237,7 +233,6 @@ describe(getCodeSigningInfoAsync, () => {
       });
 
       const result = await getCodeSigningInfoAsync(
-        '/',
         {
           updates: {
             codeSigningCertificate: 'keys/cert.pem',
@@ -253,7 +248,6 @@ describe(getCodeSigningInfoAsync, () => {
     it('throws when it cannot generate the requested keyid due to no code signing configuration in app.json', async () => {
       await expect(
         getCodeSigningInfoAsync(
-          '/',
           {
             updates: { codeSigningCertificate: 'keys/cert.pem' },
           } as any,
@@ -268,7 +262,6 @@ describe(getCodeSigningInfoAsync, () => {
     it('throws when it cannot generate the requested keyid due to configured keyid or alg mismatch', async () => {
       await expect(
         getCodeSigningInfoAsync(
-          '/',
           {
             updates: {
               codeSigningCertificate: 'keys/cert.pem',
@@ -282,7 +275,6 @@ describe(getCodeSigningInfoAsync, () => {
 
       await expect(
         getCodeSigningInfoAsync(
-          '/',
           {
             updates: {
               codeSigningCertificate: 'keys/cert.pem',
@@ -298,7 +290,6 @@ describe(getCodeSigningInfoAsync, () => {
     it('throws when it cannot load configured code signing info', async () => {
       await expect(
         getCodeSigningInfoAsync(
-          '/',
           {
             updates: {
               codeSigningCertificate: 'keys/cert.pem',

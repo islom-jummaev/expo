@@ -9,6 +9,8 @@ import {
   signStringRSASHA256AndVerify,
 } from '@expo/code-signing-certificates';
 import { ExpoConfig } from '@expo/config';
+import { getExpoHomeDirectory } from '@expo/config/build/getUserState';
+import JsonFile, { JSONObject } from '@expo/json-file';
 import { promises as fs } from 'fs';
 import { pki as PKI } from 'node-forge';
 import path from 'path';
@@ -18,7 +20,6 @@ import { getExpoGoIntermediateCertificateAsync } from '../api/getExpoGoIntermedi
 import { getProjectDevelopmentCertificateAsync } from '../api/getProjectDevelopmentCertificate';
 import { APISettings } from '../api/settings';
 import * as Log from '../log';
-import { createTemporaryProjectFile } from '../start/project/dotExpo';
 
 export type CodeSigningInfo = {
   privateKey: string;
@@ -40,15 +41,61 @@ type StoredDevelopmentExpoRootCodeSigningInfo = {
   certificateChain: string[] | null;
 };
 const DEVELOPMENT_CODE_SIGNING_SETTINGS_FILE_NAME = 'development-code-signing-settings.json';
-const DevelopmentCodeSigningInfoFile =
-  createTemporaryProjectFile<StoredDevelopmentExpoRootCodeSigningInfo>(
-    DEVELOPMENT_CODE_SIGNING_SETTINGS_FILE_NAME,
-    {
-      easProjectId: null,
-      privateKey: null,
-      certificateChain: null,
+
+export function getDevelopmentCodeSigningDirectory(): string {
+  return path.join(getExpoHomeDirectory(), 'codesigning');
+}
+
+function getProjectDevelopmentCodeSigningInfoFile<T extends JSONObject>(defaults: T) {
+  function getFile(easProjectId: string): JsonFile<T> {
+    const filePath = path.join(
+      getDevelopmentCodeSigningDirectory(),
+      easProjectId,
+      DEVELOPMENT_CODE_SIGNING_SETTINGS_FILE_NAME
+    );
+    return new JsonFile<T>(filePath);
+  }
+
+  async function readAsync(easProjectId: string): Promise<T> {
+    let projectSettings;
+    try {
+      projectSettings = await getFile(easProjectId).readAsync();
+    } catch {
+      projectSettings = await getFile(easProjectId).writeAsync(defaults, { ensureDir: true });
     }
-  );
+    // Set defaults for any missing fields
+    return { ...defaults, ...projectSettings };
+  }
+
+  async function setAsync(easProjectId: string, json: Partial<T>): Promise<T> {
+    try {
+      return await getFile(easProjectId).mergeAsync(json, {
+        cantReadFileDefault: defaults,
+      });
+    } catch {
+      return await getFile(easProjectId).writeAsync(
+        {
+          ...defaults,
+          ...json,
+        },
+        { ensureDir: true }
+      );
+    }
+  }
+
+  return {
+    getFile,
+    readAsync,
+    setAsync,
+  };
+}
+
+export const DevelopmentCodeSigningInfoFile =
+  getProjectDevelopmentCodeSigningInfoFile<StoredDevelopmentExpoRootCodeSigningInfo>({
+    easProjectId: null,
+    privateKey: null,
+    certificateChain: null,
+  });
 
 /**
  * Get info necessary to generate a response `expo-signature` header given a project and incoming request `expo-expect-signature` header.
@@ -57,7 +104,6 @@ const DevelopmentCodeSigningInfoFile =
  * - <developer's expo-updates keyid> indicates that it should sign with the configured certificate. See {@link getProjectCodeSigningCertificateAsync}
  */
 export async function getCodeSigningInfoAsync(
-  projectRoot: string,
   exp: ExpoConfig,
   expectSignatureHeader: string | null,
   privateKeyPath: string | undefined
@@ -94,7 +140,7 @@ export async function getCodeSigningInfoAsync(
   }
 
   if (expectedKeyId === 'expo-root') {
-    return await getExpoRootDevelopmentCodeSigningInfoAsync(projectRoot, exp);
+    return await getExpoRootDevelopmentCodeSigningInfoAsync(exp);
   } else if (expectedKeyId === 'expo-go') {
     throw new Error('Invalid certificate requested: cannot sign with embedded keyid=expo-go key');
   } else {
@@ -112,7 +158,6 @@ export async function getCodeSigningInfoAsync(
  * This requires the user be logged in and online, otherwise try to use the cached development certificate.
  */
 async function getExpoRootDevelopmentCodeSigningInfoAsync(
-  projectRoot: string,
   exp: ExpoConfig
 ): Promise<CodeSigningInfo | null> {
   const easProjectId = exp.extra?.eas?.projectId;
@@ -126,12 +171,12 @@ async function getExpoRootDevelopmentCodeSigningInfoAsync(
   // 1. If online, ensure logged in, generate key pair and CSR, fetch and cache certificate chain for projectId
   //    (overwriting existing dev cert in case projectId changed or it has expired)
   if (!APISettings.isOffline) {
-    return await fetchAndCacheNewDevelopmentCodeSigningInfoAsync(projectRoot, easProjectId);
+    return await fetchAndCacheNewDevelopmentCodeSigningInfoAsync(easProjectId);
   }
 
   // 2. check for cached cert/private key matching projectId and scopeKey of project, if found and valid return private key and cert chain including expo-go cert
   const developmentCodeSigningInfoFromFile = await DevelopmentCodeSigningInfoFile.readAsync(
-    projectRoot
+    easProjectId
   );
   const validatedCodeSigningInfo = validateStoredDevelopmentExpoRootCertificateCodeSigningInfo(
     developmentCodeSigningInfoFromFile,
@@ -269,7 +314,6 @@ function validateStoredDevelopmentExpoRootCertificateCodeSigningInfo(
 }
 
 async function fetchAndCacheNewDevelopmentCodeSigningInfoAsync(
-  projectRoot: string,
   easProjectId: string
 ): Promise<CodeSigningInfo> {
   const keyPair = generateKeyPair();
@@ -281,7 +325,7 @@ async function fetchAndCacheNewDevelopmentCodeSigningInfoAsync(
     getExpoGoIntermediateCertificateAsync(easProjectId),
   ]);
 
-  await DevelopmentCodeSigningInfoFile.setAsync(projectRoot, {
+  await DevelopmentCodeSigningInfoFile.setAsync(easProjectId, {
     easProjectId,
     privateKey: keyPairPEM.privateKeyPEM,
     certificateChain: [developmentSigningCertificate, expoGoIntermediateCertificate],

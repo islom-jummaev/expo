@@ -88,7 +88,6 @@ export class ExpoGoManifestHandlerMiddleware extends ManifestMiddleware<ExpoGoMa
     }
 
     const codeSigningInfo = await getCodeSigningInfoAsync(
-      this.projectRoot,
       exp,
       requestOptions.expectSignature,
       this.options.privateKeyPath
