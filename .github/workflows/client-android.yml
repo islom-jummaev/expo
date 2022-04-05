@@ -108,7 +108,7 @@ jobs:
               - android/**/*.gradle
       - name: Prebuild test
         env:
-          GRADLE_OPTS: -Dorg.gradle.daemon=false 
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=2048m
         working-directory: android
         run: |
           ./gradlew --no-daemon :app:assembleVersionedDebug
