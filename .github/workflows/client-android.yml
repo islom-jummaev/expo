@@ -38,6 +38,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx10240m -XX:MaxMetaspaceSize=1024m
     steps:
       - name: 👀 Checkout
         uses: actions/checkout@v2
