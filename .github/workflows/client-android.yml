@@ -111,7 +111,7 @@ jobs:
           GRADLE_OPTS: -Dorg.gradle.daemon=false 
         working-directory: android
         run: |
-          ./gradlew :app:assembleVersionedDebug
+          ./gradlew --no-daemon :app:assembleVersionedDebug
       - name: 🏭 Build APK
         env:
           ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
